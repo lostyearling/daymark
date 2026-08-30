@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f4f1ea">
-  <title>Daymark · GitHub 日程</title>
+  <title>Daymark · 日程</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
@@ -16,72 +16,53 @@
       <a class="brand" href="."><span class="brand-mark">D</span><span>DAYMARK</span></a>
       <div class="topbar-actions">
         <span class="sync-status" id="syncStatus"><i></i> 未连接</span>
-        <button class="icon-button" id="settingsButton" type="button" aria-label="打开设置">⚙</button>
+        <button class="icon-button" id="settingsButton" type="button" aria-label="设置">⚙</button>
       </div>
     </header>
 
     <main>
-      <section class="hero">
-        <div>
-          <p class="eyebrow">PERSONAL OPERATIONS / <span id="todayLabel"></span></p>
-          <h1>把今天，<em>标记</em>下来。</h1>
-          <p class="hero-copy">一个安静、专注的日程台。任务保存在你的 GitHub Issues 里，随时随地都能继续。</p>
+      <section class="view-calendar" id="calendarView">
+        <div class="month-nav">
+          <button class="today-button" id="backToday" type="button" hidden>今天</button>
+          <button class="month-arrow" id="prevMonth" type="button" aria-label="上月">←</button>
+          <h1 id="monthTitle"></h1>
+          <button class="month-arrow" id="nextMonth" type="button" aria-label="下月">→</button>
         </div>
-        <div class="hero-date"><span id="heroDay">--</span><small id="heroMonth">---</small></div>
+        <div class="weekdays">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
       </section>
 
-      <section class="dashboard-grid">
-        <div class="main-column">
-          <div class="view-tabs" role="tablist" aria-label="任务视图">
-            <button class="tab active" data-view="all" type="button">全部任务 <span id="allCount">0</span></button>
-            <button class="tab" data-view="today" type="button">今日打卡 <span id="todayCount">0</span></button>
-          </div>
-          <div class="filters">
-            <div class="filter-heading"><span id="listTitle">你的任务</span><span class="mono" id="lastUpdated">等待同步</span></div>
-            <div class="filter-actions">
-              <button class="filter-button active" data-filter="upcoming" type="button">进行中</button>
-              <button class="filter-button" data-filter="overdue" type="button">已过期</button>
-              <button class="filter-button" data-filter="done" type="button">已完成</button>
-              <button class="refresh-button" id="refreshButton" type="button" title="刷新">↻</button>
-            </div>
-          </div>
-          <div id="taskList" class="task-list"></div>
-          <div id="emptyState" class="empty-state" hidden>
-            <span class="empty-icon">✦</span><h2>今天还没有安排</h2><p>给自己留下一件值得完成的小事吧。</p>
+      <section class="view-day" id="dayView" hidden>
+        <div class="day-head">
+          <button class="back-button" id="backButton" type="button" aria-label="返回日历">←</button>
+          <div>
+            <h1 id="dayTitle"></h1>
+            <p id="dayProgress"></p>
           </div>
         </div>
-        <aside class="side-column">
-          <div class="progress-card">
-            <div class="card-label">今日进度 <span id="progressPercent">0%</span></div>
-            <div class="progress-ring"><div><strong id="progressDone">0</strong><small>/ <span id="progressTotal">0</span> 完成</small></div></div>
-            <p id="progressMessage">从一件小事开始。</p>
-          </div>
-          <div class="add-card">
-            <div class="card-label">新建任务 <span>+</span></div>
-            <form id="taskForm">
-              <label>任务名称<input id="taskTitle" name="title" required maxlength="120" placeholder="今天想完成什么？"></label>
-              <label>安排日期<input id="taskDate" name="date" type="date" required></label>
-              <label>详情 <span class="optional">可选</span><textarea id="taskBody" name="body" rows="3" maxlength="2000" placeholder="补充一些上下文…"></textarea></label>
-              <button class="primary-button" type="submit"><span>添加到日程</span><b>→</b></button>
-            </form>
-            <p class="local-note">↳ 将创建为 GitHub Issue，并自动添加日期标签</p>
-          </div>
-        </aside>
+        <div id="dayList" class="task-list"></div>
+        <div class="empty-state" id="emptyState" hidden><p>这天还没有任务</p></div>
+        <form class="add-form" id="taskForm">
+          <input id="taskTitle" name="title" required maxlength="120" placeholder="添加任务…">
+          <textarea id="taskBody" name="body" rows="2" maxlength="2000" placeholder="详情（可选）"></textarea>
+          <button type="submit">添加</button>
+        </form>
       </section>
     </main>
-    <footer><span>DAYMARK / GITHUB ISSUES</span><span>数据属于你 · 存储于你的仓库</span></footer>
   </div>
 
   <div class="modal-backdrop" id="settingsModal" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
       <button class="modal-close" id="closeSettings" type="button" aria-label="关闭">×</button>
-      <p class="eyebrow">CONNECTION</p><h2 id="settingsTitle">连接你的日程仓库</h2>
-      <p class="modal-intro">Daymark 直接使用 GitHub Issues 保存任务。Token 只会存储在当前浏览器的 localStorage，不会上传到任何第三方服务器。</p>
+      <p class="eyebrow">连接</p><h2 id="settingsTitle">连接 GitHub</h2>
+      <p class="modal-intro">任务保存在 GitHub Issues，Token 仅存于本地浏览器。</p>
       <form id="settingsForm">
-        <label>GitHub 用户名 / 组织<input id="ownerInput" required autocomplete="off" placeholder="例如 octocat"></label>
+        <label>用户名 / 组织<input id="ownerInput" required autocomplete="off" placeholder="例如 octocat"></label>
         <label>仓库名<input id="repoInput" required autocomplete="off" placeholder="例如 daymark"></label>
         <label>Personal Access Token<input id="tokenInput" type="password" required autocomplete="new-password" placeholder="粘贴 ghp_… 或 github_pat_…"></label>
-        <div class="token-help">建议使用细粒度 Token，仅授予目标仓库的 Issues 读写权限。<a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noreferrer">创建 Token ↗</a></div>
+        <div class="token-help">建议使用细粒度 Token，仅授予 Issues 读写权限。<a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noreferrer">创建 Token ↗</a></div>
         <button class="primary-button" type="submit"><span>保存并连接</span><b>→</b></button>
       </form>
       <button class="danger-link" id="clearSettings" type="button">清除本地凭据</button>
