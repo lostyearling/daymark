@@ -9,6 +9,8 @@
   const today = () => dateStr(new Date());
   const config = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } };
   const saveConfig = (value) => localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+  const getDailyDone = (date) => { try { const store = JSON.parse(localStorage.getItem('daymark.daily') || '{}'); return store[date] || {}; } catch { return {}; } };
+  const setDailyDone = (date, number, done) => { let store = {}; try { store = JSON.parse(localStorage.getItem('daymark.daily') || '{}'); } catch {} store[date] = store[date] || {}; store[date][number] = !!done; localStorage.setItem('daymark.daily', JSON.stringify(store)); };
   const api = {
     headers() { const c = config(); return { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', ...(c.token ? { Authorization: `token ${c.token}` } : {}) }; },
     base() { const c = config(); return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/issues`; },
@@ -28,13 +30,14 @@
   function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3600); }
   function taskTemplate(task) { return `<article class="task-item ${task.closed ? 'done' : ''}"><input class="task-check" type="checkbox" ${task.closed ? 'checked' : ''} data-number="${task.number}" aria-label="${task.closed ? '取消完成' : '标记完成'}：${escape(task.title)}"><div><div class="task-title">${escape(task.title)}</div>${task.body ? `<p class="task-body">${escape(task.body)}</p>` : ''}</div><div class="task-meta"><a href="${escape(task.html_url)}" target="_blank" rel="noreferrer">#${task.number} ↗</a>${!task.closed ? `<button class="archive-button" data-number="${task.number}" type="button">归档</button>` : ''}</div></article>`; }
   function bindTasks() { $('#dayList').querySelectorAll('.task-check').forEach((box) => box.addEventListener('change', () => toggleTask(box.dataset.number, box.checked))); $('#dayList').querySelectorAll('.archive-button').forEach((button) => button.addEventListener('click', () => archiveTask(button.dataset.number))); }
+  function bindDaily() { $('#dailySection').querySelectorAll('.daily-check').forEach((box) => box.addEventListener('change', () => { setDailyDone(state.selected, box.dataset.number, box.checked); renderDay(); showToast(box.checked ? '已完成每日任务' : '已取消每日任务'); })); }
   function renderCalendar() {
     const year = state.month.getFullYear(); const month = state.month.getMonth();
     $('#monthTitle').textContent = `${year}年${month + 1}月`;
     const now = new Date(); $('#backToday').hidden = !(year === now.getFullYear() && month === now.getMonth());
     const offset = (new Date(year, month, 1).getDay() + 6) % 7;
     const counts = {};
-    state.tasks.forEach((task) => { counts[task.date] = (counts[task.date] || 0) + 1; });
+    state.tasks.forEach((task) => { if (task.date) counts[task.date] = (counts[task.date] || 0) + 1; });
     let html = '';
     for (let i = 0; i < 42; i += 1) {
       const d = new Date(year, month, 1 - offset + i); const ds = dateStr(d);
@@ -46,18 +49,24 @@
   function openDay(date) { state.selected = date; $('#dayView').hidden = false; $('#calendarView').hidden = true; renderDay(); }
   function backToCalendar() { state.selected = null; $('#calendarView').hidden = false; $('#dayView').hidden = true; renderCalendar(); }
   function renderDay() {
-    const tasks = state.tasks.filter((task) => task.date === state.selected).sort((a, b) => (a.closed === b.closed ? 0 : a.closed ? 1 : -1));
-    $('#dayTitle').textContent = formatFull(state.selected);
-    const done = tasks.filter((task) => task.closed).length;
-    $('#dayProgress').textContent = tasks.length ? `${done}/${tasks.length} 已完成` : '';
-    $('#emptyState').hidden = tasks.length !== 0;
-    $('#dayList').innerHTML = tasks.map(taskTemplate).join('');
+    const ds = state.selected;
+    const daily = state.tasks.filter((task) => task.daily).sort((a, b) => a.number - b.number);
+    const dated = state.tasks.filter((task) => !task.daily && task.date === ds).sort((a, b) => (a.closed === b.closed ? 0 : a.closed ? 1 : -1));
+    const dailyDone = getDailyDone(ds);
+    $('#dayTitle').textContent = formatFull(ds);
+    const done = daily.filter((task) => dailyDone[task.number]).length + dated.filter((task) => task.closed).length;
+    const total = daily.length + dated.length;
+    $('#dayProgress').textContent = total ? `${done}/${total} 已完成` : '';
+    $('#dailySection').innerHTML = daily.length ? `<div class="daily-section"><h2 class="section-title">每日任务</h2><div class="daily-list">${daily.map((task) => `<label class="daily-item${dailyDone[task.number] ? ' done' : ''}"><input class="daily-check" type="checkbox" ${dailyDone[task.number] ? 'checked' : ''} data-number="${task.number}" aria-label="标记完成：${escape(task.title)}"><span>${escape(task.title)}</span></label>`).join('')}</div></div>` : '';
+    $('#emptyState').hidden = dated.length !== 0;
+    $('#dayList').innerHTML = dated.map(taskTemplate).join('');
+    bindDaily();
     bindTasks();
   }
   async function loadTasks() {
     if (!config().owner || !config().repo || !config().token) return;
     try {
-      state.tasks = (await api.list()).map((issue) => ({ ...issue, date: dateFromIssue(issue), closed: issue.state === 'closed' }));
+      state.tasks = (await api.list()).map((issue) => { const daily = (issue.labels || []).some((label) => label.name === 'daily'); return { ...issue, daily, date: daily ? null : (dateFromIssue(issue) || issue.created_at.slice(0, 10)), closed: issue.state === 'closed' }; });
       $('#syncStatus').classList.add('connected'); $('#syncStatus').innerHTML = '<i></i> 已连接';
       state.selected ? renderDay() : renderCalendar();
     } catch (error) { $('#syncStatus').classList.remove('connected'); showToast(`${error.message}。请检查仓库信息和 Token 权限。`); }

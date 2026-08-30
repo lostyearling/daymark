@@ -42,8 +42,9 @@
             <p id="dayProgress"></p>
           </div>
         </div>
+        <div id="dailySection"></div>
         <div id="dayList" class="task-list"></div>
-        <div class="empty-state" id="emptyState" hidden><p>这天还没有任务</p></div>
+        <div class="empty-state" id="emptyState" hidden><p>这一天没有其他任务</p></div>
         <form class="add-form" id="taskForm">
           <input id="taskTitle" name="title" required maxlength="120" placeholder="添加任务…">
           <textarea id="taskBody" name="body" rows="2" maxlength="2000" placeholder="详情（可选）"></textarea>
@@ -69,6 +70,6 @@
     </section>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=20260831"></script>
+  <script src="app.js?v=20260831b"></script>
 </body>
 </html>
