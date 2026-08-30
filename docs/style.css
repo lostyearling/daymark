@@ -13,6 +13,7 @@ a{color:inherit}
 .sync-status i{display:inline-block;width:7px;height:7px;background:var(--orange);border-radius:50%;margin-right:8px}
 .sync-status.connected i{background:#799b60}
 .icon-button{border:0;background:none;font-size:21px}
+.topbar-buttons{display:flex;align-items:center;gap:8px}
 .month-nav{display:flex;align-items:center;justify-content:center;gap:22px;padding:44px 0 26px;position:relative}
 .month-nav h1{font:27px var(--serif);font-weight:600;margin:0;min-width:158px;text-align:center}
 .month-arrow{border:1px solid var(--line);background:var(--white);width:38px;height:38px;border-radius:50%;font-size:16px;transition:.15s}

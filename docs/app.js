@@ -76,6 +76,7 @@
   async function archiveTask(number) { if (!confirm('归档会关闭该 Issue（GitHub 不提供真正删除）。继续吗？')) return; await toggleTask(number, true); }
   function openSettings() { const c = config(); $('#ownerInput').value = c.owner || ''; $('#repoInput').value = c.repo || ''; $('#tokenInput').value = c.token || ''; $('#settingsModal').hidden = false; }
   $('#settingsButton').addEventListener('click', openSettings);
+  $('#refreshButton').addEventListener('click', () => location.reload());
   $('#closeSettings').addEventListener('click', () => { $('#settingsModal').hidden = true; });
   $('#settingsModal').addEventListener('click', (event) => { if (event.target.id === 'settingsModal') $('#settingsModal').hidden = true; });
   $('#settingsForm').addEventListener('submit', async (event) => { event.preventDefault(); saveConfig({ owner: $('#ownerInput').value.trim(), repo: $('#repoInput').value.trim(), token: $('#tokenInput').value.trim() }); $('#settingsModal').hidden = true; showToast('已保存，正在同步…'); await loadTasks(); });
