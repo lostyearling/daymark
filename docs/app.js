@@ -21,16 +21,23 @@
     },
     async list() { const items = []; for (let page = 1; page <= 5; page += 1) { const batch = await this.request(`?state=all&per_page=100&page=${page}`); items.push(...batch.filter((item) => !item.pull_request)); if (batch.length < 100) break; } return items; },
     create(title, body, date) { return this.request('', { method: 'POST', body: JSON.stringify({ title, body, labels: [`date:${date}`] }) }); },
-    update(number, stateValue) { return this.request(`/${number}`, { method: 'PATCH', body: JSON.stringify({ state: stateValue }) }); }
+    update(number, stateValue) { return this.request(`/${number}`, { method: 'PATCH', body: JSON.stringify({ state: stateValue }) }); },
+    async remove(number) {
+      const task = state.tasks.find((item) => String(item.number) === String(number));
+      if (!task || !task.node_id) throw new Error('缺少节点信息');
+      const response = await fetch('https://api.github.com/graphql', { method: 'POST', headers: { ...this.headers() }, body: JSON.stringify({ query: 'mutation($id: ID!){ deleteIssue(input:{issueId:$id}){ clientMutationId } }', variables: { id: task.node_id } }) });
+      const data = await response.json();
+      if (data.errors) throw new Error(data.errors.map((e) => e.message).join('；'));
+    }
   };
   const formatDate = (d) => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(d);
   const formatFull = (ds) => { const d = new Date(`${ds}T00:00:00`); return d.getFullYear() === new Date().getFullYear() ? formatDate(d) : new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }).format(d); };
   const dateFromIssue = (issue) => (issue.labels || []).map((label) => label.name).find((name) => /^date:\d{4}-\d{2}-\d{2}$/.test(name))?.slice(5) || issue.created_at.slice(0, 10);
   const escape = (value) => String(value || '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   function showToast(message) { const toast = $('#toast'); toast.textContent = message; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3600); }
-  function taskTemplate(task) { return `<article class="task-item ${task.closed ? 'done' : ''}"><input class="task-check" type="checkbox" ${task.closed ? 'checked' : ''} data-number="${task.number}" aria-label="${task.closed ? '取消完成' : '标记完成'}：${escape(task.title)}"><div><div class="task-title">${escape(task.title)}</div>${task.body ? `<p class="task-body">${escape(task.body)}</p>` : ''}</div><div class="task-meta"><a href="${escape(task.html_url)}" target="_blank" rel="noreferrer">#${task.number} ↗</a>${!task.closed ? `<button class="archive-button" data-number="${task.number}" type="button">归档</button>` : ''}</div></article>`; }
-  function bindTasks() { $('#dayList').querySelectorAll('.task-check').forEach((box) => box.addEventListener('change', () => toggleTask(box.dataset.number, box.checked))); $('#dayList').querySelectorAll('.archive-button').forEach((button) => button.addEventListener('click', () => archiveTask(button.dataset.number))); }
-  function bindDaily() { $('#dailySection').querySelectorAll('.daily-check').forEach((box) => box.addEventListener('change', () => { setDailyDone(state.selected, box.dataset.number, box.checked); renderDay(); showToast(box.checked ? '已完成每日任务' : '已取消每日任务'); })); }
+  function taskTemplate(task) { return `<article class="task-item ${task.closed ? 'done' : ''}"><input class="task-check" type="checkbox" ${task.closed ? 'checked' : ''} data-number="${task.number}" aria-label="${task.closed ? '取消完成' : '标记完成'}：${escape(task.title)}"><div><div class="task-title">${escape(task.title)}</div>${task.body ? `<p class="task-body">${escape(task.body)}</p>` : ''}</div><div class="task-meta"><a href="${escape(task.html_url)}" target="_blank" rel="noreferrer">#${task.number} ↗</a>${!task.closed ? `<button class="archive-button" data-number="${task.number}" type="button">归档</button>` : ''}<button class="delete-button" data-number="${task.number}" type="button">删除</button></div></article>`; }
+  function bindTasks() { $('#dayList').querySelectorAll('.task-check').forEach((box) => box.addEventListener('change', () => toggleTask(box.dataset.number, box.checked))); $('#dayList').querySelectorAll('.archive-button').forEach((button) => button.addEventListener('click', () => archiveTask(button.dataset.number))); $('#dayList').querySelectorAll('.delete-button').forEach((button) => button.addEventListener('click', () => deleteTask(button.dataset.number))); }
+  function bindDaily() { $('#dailySection').querySelectorAll('.daily-check').forEach((box) => box.addEventListener('change', () => { setDailyDone(state.selected, box.dataset.number, box.checked); renderDay(); showToast(box.checked ? '已完成每日任务' : '已取消每日任务'); })); $('#dailySection').querySelectorAll('.delete-button').forEach((button) => button.addEventListener('click', () => deleteTask(button.dataset.number))); }
   function renderCalendar() {
     const year = state.month.getFullYear(); const month = state.month.getMonth();
     $('#monthTitle').textContent = `${year}年${month + 1}月`;
@@ -50,14 +57,14 @@
   function backToCalendar() { state.selected = null; $('#calendarView').hidden = false; $('#dayView').hidden = true; renderCalendar(); }
   function renderDay() {
     const ds = state.selected;
-    const daily = state.tasks.filter((task) => task.daily).sort((a, b) => a.number - b.number);
+    const daily = state.tasks.filter((task) => task.daily && !task.closed).sort((a, b) => a.number - b.number);
     const dated = state.tasks.filter((task) => !task.daily && task.date === ds).sort((a, b) => (a.closed === b.closed ? 0 : a.closed ? 1 : -1));
     const dailyDone = getDailyDone(ds);
     $('#dayTitle').textContent = formatFull(ds);
     const done = daily.filter((task) => dailyDone[task.number]).length + dated.filter((task) => task.closed).length;
     const total = daily.length + dated.length;
     $('#dayProgress').textContent = total ? `${done}/${total} 已完成` : '';
-    $('#dailySection').innerHTML = daily.length ? `<div class="daily-section"><h2 class="section-title">每日任务</h2><div class="daily-list">${daily.map((task) => `<label class="daily-item${dailyDone[task.number] ? ' done' : ''}"><input class="daily-check" type="checkbox" ${dailyDone[task.number] ? 'checked' : ''} data-number="${task.number}" aria-label="标记完成：${escape(task.title)}"><span>${escape(task.title)}</span></label>`).join('')}</div></div>` : '';
+    $('#dailySection').innerHTML = daily.length ? `<div class="daily-section"><h2 class="section-title">每日任务</h2><div class="daily-list">${daily.map((task) => `<div class="daily-item${dailyDone[task.number] ? ' done' : ''}"><label class="daily-box"><input class="daily-check" type="checkbox" ${dailyDone[task.number] ? 'checked' : ''} data-number="${task.number}" aria-label="标记完成：${escape(task.title)}"><span>${escape(task.title)}</span></label><button class="delete-button" data-number="${task.number}" type="button">删除</button></div>`).join('')}</div></div>` : '';
     $('#datedHead').hidden = dated.length === 0;
     $('#emptyState').hidden = dated.length !== 0;
     $('#dayList').innerHTML = dated.map(taskTemplate).join('');
@@ -74,6 +81,11 @@
   }
   async function toggleTask(number, checked) { try { await api.update(number, checked ? 'closed' : 'open'); const task = state.tasks.find((item) => String(item.number) === String(number)); if (task) task.closed = checked; renderDay(); } catch (error) { showToast(error.message); renderDay(); } }
   async function archiveTask(number) { if (!confirm('归档会关闭该 Issue（GitHub 不提供真正删除）。继续吗？')) return; await toggleTask(number, true); }
+  async function deleteTask(number) {
+    if (!confirm('确认删除这个任务吗？操作不可恢复。')) return;
+    try { await api.remove(number); state.tasks = state.tasks.filter((item) => String(item.number) !== String(number)); renderDay(); showToast('已删除'); }
+    catch (error) { showToast(`无法删除（${error.message}），已改为归档`); await toggleTask(number, true); }
+  }
   function openSettings() { const c = config(); $('#ownerInput').value = c.owner || ''; $('#repoInput').value = c.repo || ''; $('#tokenInput').value = c.token || ''; $('#settingsModal').hidden = false; }
   $('#settingsButton').addEventListener('click', openSettings);
   $('#refreshButton').addEventListener('click', () => location.reload());
