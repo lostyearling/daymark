@@ -58,6 +58,7 @@
     const total = daily.length + dated.length;
     $('#dayProgress').textContent = total ? `${done}/${total} 已完成` : '';
     $('#dailySection').innerHTML = daily.length ? `<div class="daily-section"><h2 class="section-title">每日任务</h2><div class="daily-list">${daily.map((task) => `<label class="daily-item${dailyDone[task.number] ? ' done' : ''}"><input class="daily-check" type="checkbox" ${dailyDone[task.number] ? 'checked' : ''} data-number="${task.number}" aria-label="标记完成：${escape(task.title)}"><span>${escape(task.title)}</span></label>`).join('')}</div></div>` : '';
+    $('#datedHead').hidden = dated.length === 0;
     $('#emptyState').hidden = dated.length !== 0;
     $('#dayList').innerHTML = dated.map(taskTemplate).join('');
     bindDaily();
