@@ -64,7 +64,7 @@
     const done = daily.filter((task) => dailyDone[task.number]).length + dated.filter((task) => task.closed).length;
     const total = daily.length + dated.length;
     $('#dayProgress').textContent = total ? `${done}/${total} 已完成` : '';
-    $('#dailySection').innerHTML = daily.length ? `<div class="daily-section"><h2 class="section-title">每日任务</h2><div class="daily-list">${daily.map((task) => `<div class="daily-item${dailyDone[task.number] ? ' done' : ''}"><label class="daily-box"><input class="daily-check" type="checkbox" ${dailyDone[task.number] ? 'checked' : ''} data-number="${task.number}" aria-label="标记完成：${escape(task.title)}"><span>${escape(task.title)}</span></label><button class="delete-button" data-number="${task.number}" type="button">删除</button></div>`).join('')}</div></div>` : '';
+    $('#dailySection').innerHTML = daily.length ? `<div class="daily-section"><h2 class="section-title">每日任务</h2><div class="daily-list">${daily.map((task) => `<div class="daily-row"><div class="daily-item${dailyDone[task.number] ? ' done' : ''}"><label class="daily-box"><input class="daily-check" type="checkbox" ${dailyDone[task.number] ? 'checked' : ''} data-number="${task.number}" aria-label="标记完成：${escape(task.title)}"><span>${escape(task.title)}</span></label></div><button class="delete-button" data-number="${task.number}" type="button">删除</button></div>`).join('')}</div></div>` : '';
     $('#datedHead').hidden = dated.length === 0;
     $('#emptyState').hidden = dated.length !== 0;
     $('#dayList').innerHTML = dated.map(taskTemplate).join('');

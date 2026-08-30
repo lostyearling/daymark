@@ -55,7 +55,8 @@ a{color:inherit}
 .section-title{font:10px var(--mono);letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin:0 0 10px}
 .section-title-row{margin-top:26px}
 .daily-list{display:grid;gap:8px}
-.daily-item{display:flex;align-items:center;gap:10px;background:var(--white);border:1px solid var(--orange);color:var(--ink);border-radius:6px;padding:13px 14px;font-weight:600;font-size:13px;transition:.2s}
+.daily-row{display:flex;align-items:center;gap:10px}
+.daily-item{display:flex;align-items:center;gap:10px;flex:1;background:var(--white);border:1px solid var(--orange);color:var(--ink);border-radius:6px;padding:13px 14px;font-weight:600;font-size:13px;transition:.2s}
 .daily-box{display:flex;align-items:center;gap:12px;flex:1;cursor:pointer}
 .daily-box input{width:17px;height:17px;border:2px solid var(--orange);background:transparent;border-radius:50%;appearance:none;position:relative;margin:0;flex:none}
 .daily-box input:checked{background:var(--green);border-color:var(--green)}
